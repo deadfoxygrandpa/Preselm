@@ -1,4 +1,4 @@
--- Copyright Grzegorz Balcerek 2013 www.grzegorzbalcerek.net; see the LICENSE.txt file
+-- Copyright (c) 2013 Grzegorz Balcerek; see the LICENSE.txt file
 
 module Preselm (presentation,emptyFrame) where
 
