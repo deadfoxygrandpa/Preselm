@@ -9,8 +9,7 @@ In order to make a presentation, create an Elm file with the presenation content
 
 If the compilation is successful, the `my-presentation.html` file with your presentation should be created.
 
-=============
 
-# Tutorial
+## Tutorial
 
 The `Tutorial.elm` file contains a tutorial. You can compile it with Preselm as described above and then view it.
