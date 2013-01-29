@@ -139,8 +139,12 @@ Since this frame has the `selectionBoxColor` set to `Just blue`, you can try it 
 
 --------------------------
 
-frame8 = { emptyFrame | middle <- Just [markdown|## This the end of the tutorial.|] }
+frame8 = { emptyFrame | middle <- Just [markdown|## You can find Preselm [here](https://github.com/grzegorzbalcerek/Preselm).|] }
 
 --------------------------
 
-main = presentation [frame1, frame2, frame3, hwframe1, hwframe2, frame4, frame5, frame6, frame7, frame8 ]
+frame9 = { emptyFrame | middle <- Just [markdown|## This the end of the tutorial.|] }
+
+--------------------------
+
+main = presentation [frame1, frame2, frame3, hwframe1, hwframe2, frame4, frame5, frame6, frame7, frame8, frame9 ]

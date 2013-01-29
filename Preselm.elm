@@ -2,7 +2,7 @@
 
 module Preselm (presentation,emptyFrame) where
 
-import Maybe (catMaybes, fromMaybe)
+import Maybe (justs, maybe)
 
 -- util
 
@@ -10,26 +10,26 @@ ithmod n (h:t) =
   let nmod = n `mod` (length (h:t))
   in if nmod == 0 then h else (ithmod (nmod-1) t)
 
-null lst = case lst of { [] -> True; _ -> False }
+isEmpty lst = case lst of { [] -> True; _ -> False }
 
 maybe_map f m = case m of { Just x -> Just (f x); Nothing -> Nothing }
 
 -- signals
 
-data Transition = Immediate | LeftToRight | RightToLeft
+data Transition = NoTransition | ForwardTransition | BackwardTransition
 
-lastKeysDownSignal = sampleOn (dropIf null [] Keyboard.Raw.keysDown) Keyboard.Raw.keysDown
+lastKeysDownSignal = sampleOn (dropIf isEmpty [] Keyboard.Raw.keysDown) Keyboard.Raw.keysDown
 
 currentFrameIndexSignal =
   let step (t,keys) indexes =
     let (nextIndex,trans) = 
-        if | keys == [39] || keys == [78] || keys == [13] -> (indexes.current+1,LeftToRight)
-           | keys == [37] || keys == [80] -> (indexes.current-1,RightToLeft)
-           | keys == [35] || keys == [69] -> (0-1,Immediate)
-           | keys == [36] || keys == [72] -> (0,Immediate)
-           | otherwise -> (indexes.current,Immediate)
+        if | keys == [39] || keys == [78] || keys == [13] -> (indexes.current+1,ForwardTransition)
+           | keys == [37] || keys == [80] -> (indexes.current-1,BackwardTransition)
+           | keys == [35] || keys == [69] -> (0-1,NoTransition)
+           | keys == [36] || keys == [72] -> (0,NoTransition)
+           | otherwise -> (indexes.current,NoTransition)
     in { current = nextIndex, previous = indexes.current, indexChangeTime = t, transition = trans }
-  in foldp step { current=0, previous=0, indexChangeTime=0, transition = Immediate } (timestamp lastKeysDownSignal)
+  in foldp step { current=0, previous=0, indexChangeTime=0, transition = NoTransition } (timestamp lastKeysDownSignal)
 
 -- this signal has the elapsed time since the last frame index change, updated with the frequency of fps 10, 
 timeSinceIndexChangeSignal = timeOf (fpsWhen 10 (since second currentFrameIndexSignal))
@@ -74,11 +74,11 @@ backgroundBuilders =
 
 headerBuilders =
   let titleElement frame context =
-        let headerHeight = context.windowHeight * (fromMaybe 0.0 frame.headerHeight)
+        let headerHeight = context.windowHeight * (maybe 0.0 id frame.headerHeight)
             f x = container context.windowWidth headerHeight middle (text . header . toText $ x)
         in maybe_map f frame.title
       headerBackgroundElement frame context =
-        let headerHeight = context.windowHeight * (fromMaybe 0.0 frame.headerHeight)
+        let headerHeight = context.windowHeight * (maybe 0.0 id frame.headerHeight)
             f x = collage context.windowWidth headerHeight [
                      filled x $ rect context.windowWidth headerHeight
                              ((toFloat context.windowWidth)/2.0,(headerHeight)/2.0) ]
@@ -89,9 +89,9 @@ headerBuilders =
 contentBuilders =
   let contentElement frame context =
     let floatWidth = toFloat context.windowWidth
-        leftMargin = fromMaybe 0.0 frame.leftMargin
-        topMargin = fromMaybe 0.0 frame.topMargin
-        contentWidth = fromMaybe 1.0 frame.contentWidth
+        leftMargin = maybe 0.0 id frame.leftMargin
+        topMargin = maybe 0.0 id frame.topMargin
+        contentWidth = maybe 1.0 id frame.contentWidth
         f x = container context.windowWidth context.windowHeight
                  (topLeftAt (relative leftMargin)(relative topMargin))
                  (width (truncate (floatWidth * contentWidth)) x)
@@ -107,19 +107,19 @@ middleBuilders =
 
 twoColumnsBuilders =
   let column1Element frame context =
-        let leftMargin = fromMaybe 0.0 frame.leftMargin
-            topMargin = fromMaybe 0.0 frame.topMargin
+        let leftMargin = maybe 0.0 id frame.leftMargin
+            topMargin = maybe 0.0 id frame.topMargin
             floatWidth = toFloat context.windowWidth
-            columnWidth = fromMaybe 0.5 frame.columnWidth
+            columnWidth = maybe 0.5 id frame.columnWidth
             f x = container context.windowWidth context.windowHeight
                                              (topLeftAt (relative leftMargin)(relative topMargin))
                                              (width (truncate (floatWidth * columnWidth)) x)
         in maybe_map f frame.column1
       column2Element frame context =
-        let rightMargin = fromMaybe 0.0 frame.rightMargin
-            topMargin = fromMaybe 0.0 frame.topMargin
+        let rightMargin = maybe 0.0 id frame.rightMargin
+            topMargin = maybe 0.0 id frame.topMargin
             floatWidth = toFloat context.windowWidth
-            columnWidth = fromMaybe 0.5 frame.columnWidth
+            columnWidth = maybe 0.5 id frame.columnWidth
             f x = container context.windowWidth context.windowHeight
                                              (topRightAt (relative rightMargin)(relative topMargin))
                                              (width (truncate (floatWidth * columnWidth)) x)
@@ -138,7 +138,7 @@ selectionBoxBuilder =
                w = xR - xL
                h = yD - yU
                center = ((xR+xL)/2, (yD+yU)/2)
-               color = fromMaybe white frame.selectionBoxColor
+               color = maybe white id frame.selectionBoxColor
            in Just $ collage context.windowWidth context.windowHeight [
                        outlined color $ rect (w-4) (h-4) center ,
                        outlined color $ rect (w-2) (h-2) center ,
@@ -149,7 +149,7 @@ selectionBoxBuilder =
 
 coreFrameBuilders = concat [ backgroundBuilders, headerBuilders, contentBuilders, middleBuilders, twoColumnsBuilders, selectionBoxBuilder]
 frameBuilders = coreFrameBuilders -- ++ [contextDebugBuilder]
-buildFrame frame context = layers (catMaybes $ map (\f -> f frame context) frameBuilders)
+buildFrame frame context = layers (justs $ map (\f -> f frame context) frameBuilders)
 
 ----------------------------- HANDLERS
 
@@ -170,11 +170,11 @@ slidingTransitionSelectors =
                   position = topLeftAt (absolute (deltaX-context.windowWidth)) (absolute 0)
               in container context.windowWidth context.windowHeight position twoFrames
       selectLTR context =
-        if context.transition == LeftToRight && context.timeSinceIndexChange < 1000
+        if context.transition == ForwardTransition && context.timeSinceIndexChange < 1000
         then Just moveFramesLeftToRight
         else Nothing
       selectRTL context =
-        if context.transition == RightToLeft && context.timeSinceIndexChange < 1000
+        if context.transition == BackwardTransition && context.timeSinceIndexChange < 1000
         then Just moveFramesRightToLeft
         else Nothing
   in  [ selectLTR, selectRTL ]
@@ -206,7 +206,7 @@ emptyFrame = {
 
 presentation frames =
   let showPresentation frames context = 
-        let handlers = catMaybes $ map (\f -> f context) handlerSelectors
+        let handlers = justs $ map (\f -> f context) handlerSelectors
             theHandler = head handlers
         in theHandler frames context
   in lift (showPresentation frames) contextSignal
