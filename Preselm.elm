@@ -40,7 +40,7 @@ currentFrameIndexSignal =
 
 -- this signal has the elapsed time since the last frame index change, updated with the frequency of fps 60, 
 timeSinceIndexChangeSignal : Signal Time
-timeSinceIndexChangeSignal = fst <~ (timestamp <| fpsWhen 60 (since second currentFrameIndexSignal))
+timeSinceIndexChangeSignal = fst <~ (timestamp <| fpsWhen 120 (since second currentFrameIndexSignal))
 
 -- context
 
@@ -158,10 +158,12 @@ selectionBoxBuilder =
                w = xR - xL
                h = yD - yU
                color = maybe white id frame.selectionBoxColor
+               x = (x0 + x1) / 2 - (toFloat context.windowWidth) / 2
+               y = (y1 - y0) / 2 + ((toFloat context.windowHeight) / 4) - ((y0 + y1) / 4)
            in Just <| collage context.windowWidth context.windowHeight [
-                      outlined color <| rect (w-4) (h-4) ,
-                      outlined color <| rect (w-2) (h-2) ,
-                      outlined color <| rect w h ]
+                      move (x, y) <| outlined (solid color) <| rect (w-4) (h-4) ,
+                      move (x, y) <| outlined (solid color) <| rect (w-2) (h-2) ,
+                      move (x, y) <| outlined (solid color) <| rect w h ]
       else Nothing
     else Nothing
   in [ selectionBoxElement ]
@@ -252,4 +254,12 @@ presentation frames =
         in theHandler frames context
   in lift (showPresentation frames) contextSignal
 
---main = presentation [{ emptyFrame | middle <- Just [markdown|## This the end of the tutorial.|] }]
+framer : Element
+framer = [markdown|
+
+# Preselm Tutorial
+Press *Enter* to continue.
+
+|]
+
+main = asText <~ contextSignal
