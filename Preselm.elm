@@ -1,4 +1,6 @@
-module Preselm where
+-- Copyright (c) 2013 Grzegorz Balcerek; see the LICENSE.txt file
+
+module Preselm (presentation, emptyFrame) where
 
 import Maybe (justs, maybe)
 import Keyboard
@@ -38,9 +40,9 @@ currentFrameIndexSignal =
     in { current = nextIndex, previous = indexes.current, indexChangeTime = t, transition = trans }
   in foldp step { current=0, previous=0, indexChangeTime=0, transition = NoTransition } (timestamp lastKeysDownSignal)
 
--- this signal has the elapsed time since the last frame index change, updated with the frequency of fps 60, 
+-- this signal has the elapsed time since the last frame index change, updated with the frequency of fps 60
 timeSinceIndexChangeSignal : Signal Time
-timeSinceIndexChangeSignal = fst <~ (timestamp <| fpsWhen 120 (since second currentFrameIndexSignal))
+timeSinceIndexChangeSignal = fst <~ (timestamp <| fpsWhen 60 (since second currentFrameIndexSignal))
 
 -- context
 
@@ -78,14 +80,16 @@ contextSignal = makeContextRecord <~ Window.dimensions
 
 ------------------------------------ FRAME BUILDERS --------------------
 
+type MaybeFrameBuilder = Frame -> Context -> Maybe Element
+type FrameBuilder = Frame -> Context -> Element
 
---contextDebugBuilder : [(Frame -> Context -> Maybe Element)]
+contextDebugBuilder : [MaybeFrameBuilder]
 contextDebugBuilder =
   let contextDebugElement frame context = Just <| container context.windowWidth context.windowHeight midBottom (asText context)
   in [ contextDebugElement ]
 
 
---backgroundBuilders : 
+backgroundBuilders : [MaybeFrameBuilder]
 backgroundBuilders =
   let backgroundColorElement frame context =
     let f x = collage context.windowWidth context.windowHeight [
@@ -93,6 +97,7 @@ backgroundBuilders =
     in maybe_map f frame.backgroundColor
   in [ backgroundColorElement ]
 
+headerBuilders : [MaybeFrameBuilder]
 headerBuilders =
   let titleElement frame context =
         let headerHeight = context.windowHeight * (maybe 0.0 id frame.headerHeight)
@@ -105,7 +110,7 @@ headerBuilders =
         in maybe_map f frame.headerBackgroundColor
   in  [ headerBackgroundElement, titleElement ]
 
-
+contentBuilders : [MaybeFrameBuilder]
 contentBuilders =
   let contentElement frame context =
     let floatWidth = toFloat context.windowWidth
@@ -118,13 +123,14 @@ contentBuilders =
     in maybe_map f frame.content
   in  [ contentElement ]
 
+middleBuilders : [MaybeFrameBuilder]
 middleBuilders =
   let middleElement frame context =
     let f x = container context.windowWidth context.windowHeight middle x
     in maybe_map f frame.middle
   in  [ middleElement ]
 
-
+twoColumnsBuilders : [MaybeFrameBuilder]
 twoColumnsBuilders =
   let column1Element frame context =
         let leftMargin = maybe 0.0 id frame.leftMargin
@@ -146,6 +152,7 @@ twoColumnsBuilders =
         in maybe_map f frame.column2
   in  [ column1Element, column2Element ]
 
+selectionBoxBuilder : [MaybeFrameBuilder]
 selectionBoxBuilder =
   let selectionBoxElement frame context =
     if Maybe.isJust frame.selectionBoxColor
@@ -159,21 +166,30 @@ selectionBoxBuilder =
                h = yD - yU
                color = maybe white id frame.selectionBoxColor
                x = (x0 + x1) / 2 - (toFloat context.windowWidth) / 2
-               y = (y1 - y0) / 2 + ((toFloat context.windowHeight) / 4) - ((y0 + y1) / 4)
+               y = ((toFloat context.windowHeight) / 2) - (y1 + y0) / 2
            in Just <| collage context.windowWidth context.windowHeight [
                       move (x, y) <| outlined (solid color) <| rect (w-4) (h-4) ,
                       move (x, y) <| outlined (solid color) <| rect (w-2) (h-2) ,
                       move (x, y) <| outlined (solid color) <| rect w h ]
+
       else Nothing
     else Nothing
   in [ selectionBoxElement ]
 
+coreFrameBuilders : [MaybeFrameBuilder]
 coreFrameBuilders = concat [ backgroundBuilders, headerBuilders, contentBuilders, middleBuilders, twoColumnsBuilders, selectionBoxBuilder]
+
+frameBuilders : [MaybeFrameBuilder]
 frameBuilders = coreFrameBuilders -- ++ [contextDebugBuilder]
+
+buildFrame : FrameBuilder
 buildFrame frame context = layers (justs <| map (\f -> f frame context) frameBuilders)
 
 ----------------------------- HANDLERS
 
+type HandlerSelector = Context -> Maybe FrameBuilder
+
+slidingTransitionSelectors : [HandlerSelector]
 slidingTransitionSelectors = 
   let twoFramesElement leftFrame rightFrame context = (buildFrame leftFrame context) `beside` (buildFrame rightFrame context)
       getDelta windowWidth tsic = (toFloat windowWidth) * (1 - 0.9^(tsic / 10)) 
@@ -201,16 +217,20 @@ slidingTransitionSelectors =
         else Nothing
   in  [ selectLTR, selectRTL ]
 
+defaultHandlerSelector : [HandlerSelector]
 defaultHandlerSelector =
   let showCurrentFrame frames context = buildFrame (ithmod context.currentFrameIndex frames) context
       selectShowFrame context = Just showCurrentFrame
   in [ selectShowFrame ] 
 
+handlerSelectors : [HandlerSelector]
 handlerSelectors = concat [slidingTransitionSelectors, defaultHandlerSelector]
       
 -- presentation
 
--- Record types with >9 fields are broken atm
+-- NOTE: Because of Elm issue #192, the following type is bugged. When issue #192 is fixed, the following should be uncommented
+--       and the type 'Frame' should be used in the type signatures of 'emptyFrame' and 'presentation'
+--       For reference: https://github.com/evancz/Elm/issues/192
 --type Frame = { backgroundColor : Maybe Color
 --             , column1 : Maybe String
 --             , column2 : Maybe String
@@ -253,13 +273,3 @@ presentation frames =
             theHandler = head handlers
         in theHandler frames context
   in lift (showPresentation frames) contextSignal
-
-framer : Element
-framer = [markdown|
-
-# Preselm Tutorial
-Press *Enter* to continue.
-
-|]
-
-main = asText <~ contextSignal

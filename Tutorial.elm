@@ -1,15 +1,13 @@
+-- Copyright (c) 2013 Grzegorz Balcerek; see the LICENSE.txt file
+
 module Tutorial where
 
 import open Preselm
 
 --------------------------
 
-frame1 = { emptyFrame | middle <- Just [markdown|
-
-# Preselm Tutorial
-Press *Enter* to continue.
-
-|] }
+frame1 = { emptyFrame | middle <- Just [markdown|# Preselm Tutorial
+Press *Enter* to continue.|] }
 
 --------------------------
 
@@ -29,9 +27,7 @@ Before we continue, let’s see how you can navigate through this presentation.
 - press _**home**_ or _**h**_ button to go to the first frame
 - press _**end**_ or _**e**_ to go to the last frame
 
-### Now, press *Enter* to go to the next frame
-
-|] }
+### Now, press *Enter* to go to the next frame|] }
 
 --------------------------
 
@@ -57,9 +53,7 @@ When you open it in a browser, you should get a Preselm presentation with two fr
 
 After those two frames the tutorial will continue.
 
-Press *Enter* to continue. 
-
-|],
+Press *Enter* to continue. |],
  column2 <- Just (text $ monospace $ toText hwProgram) }
 
 --------------------------
