@@ -2,7 +2,7 @@
 
 module Preselm (presentation, emptyFrame) where
 
-import Maybe (justs, maybe)
+import open Maybe
 import Keyboard
 import Window
 import Mouse
@@ -25,7 +25,7 @@ maybe_map f m = case m of { Just x -> Just (f x); Nothing -> Nothing }
 data Transition = NoTransition | ForwardTransition | BackwardTransition
 type FrameIndex = {current : Int, previous : Int, indexChangeTime: Time, transition : Transition}
 
-lastKeysDownSignal : Signal [KeyCode]
+lastKeysDownSignal : Signal [Keyboard.KeyCode]
 lastKeysDownSignal = sampleOn (dropIf isEmpty [] Keyboard.keysDown) Keyboard.keysDown
 
 currentFrameIndexSignal : Signal FrameIndex
@@ -83,79 +83,79 @@ contextSignal = makeContextRecord <~ Window.dimensions
 type MaybeFrameBuilder = Frame -> Context -> Maybe Element
 type FrameBuilder = Frame -> Context -> Element
 
-contextDebugBuilder : [MaybeFrameBuilder]
+--contextDebugBuilder : [MaybeFrameBuilder]
 contextDebugBuilder =
   let contextDebugElement frame context = Just <| container context.windowWidth context.windowHeight midBottom (asText context)
   in [ contextDebugElement ]
 
 
-backgroundBuilders : [MaybeFrameBuilder]
+--backgroundBuilders : [MaybeFrameBuilder]
 backgroundBuilders =
   let backgroundColorElement frame context =
     let f x = collage context.windowWidth context.windowHeight [
-                filled x <| rect context.windowWidth context.windowHeight ]
+                filled x <| rect (toFloat context.windowWidth) (toFloat context.windowHeight) ]
     in maybe_map f frame.backgroundColor
   in [ backgroundColorElement ]
 
-headerBuilders : [MaybeFrameBuilder]
+--headerBuilders : [MaybeFrameBuilder]
 headerBuilders =
   let titleElement frame context =
-        let headerHeight = context.windowHeight * (maybe 0.0 id frame.headerHeight)
-            f x = container context.windowWidth headerHeight middle (text . header . toText <| x)
+        let headerHeight = toFloat <| context.windowHeight * (maybe 0 id frame.headerHeight)
+            f x = container context.windowWidth (round headerHeight) middle (text . header . toText <| x)
         in maybe_map f frame.title
       headerBackgroundElement frame context =
-        let headerHeight = context.windowHeight * (maybe 0.0 id frame.headerHeight)
+        let headerHeight = context.windowHeight * (maybe 0 id frame.headerHeight)
             f x = collage context.windowWidth headerHeight [
-                     filled x <| rect context.windowWidth headerHeight ]
+                     filled x <| rect (toFloat context.windowWidth) headerHeight ]
         in maybe_map f frame.headerBackgroundColor
   in  [ headerBackgroundElement, titleElement ]
 
-contentBuilders : [MaybeFrameBuilder]
+--contentBuilders : [MaybeFrameBuilder]
 contentBuilders =
   let contentElement frame context =
     let floatWidth = toFloat context.windowWidth
-        leftMargin = maybe 0.0 id frame.leftMargin
-        topMargin = maybe 0.0 id frame.topMargin
-        contentWidth = maybe 1.0 id frame.contentWidth
+        leftMargin = maybe 0 id frame.leftMargin
+        topMargin = maybe 0 id frame.topMargin
+        contentWidth = maybe 1 id frame.contentWidth
         f x = container context.windowWidth context.windowHeight
                  (topLeftAt (relative leftMargin) (relative topMargin))
                  (width (truncate (floatWidth * contentWidth)) x)
     in maybe_map f frame.content
   in  [ contentElement ]
 
-middleBuilders : [MaybeFrameBuilder]
+--middleBuilders : [MaybeFrameBuilder]
 middleBuilders =
   let middleElement frame context =
     let f x = container context.windowWidth context.windowHeight middle x
     in maybe_map f frame.middle
   in  [ middleElement ]
 
-twoColumnsBuilders : [MaybeFrameBuilder]
+--twoColumnsBuilders : [MaybeFrameBuilder]
 twoColumnsBuilders =
   let column1Element frame context =
-        let leftMargin = maybe 0.0 id frame.leftMargin
-            topMargin = maybe 0.0 id frame.topMargin
+        let leftMargin = maybe 0 id frame.leftMargin
+            topMargin = maybe 0 id frame.topMargin
             floatWidth = toFloat context.windowWidth
-            columnWidth = maybe 0.5 id frame.columnWidth
+            columnWidth = maybe 0 id frame.columnWidth
             f x = container context.windowWidth context.windowHeight
                                              (topLeftAt (relative leftMargin) (relative topMargin))
                                              (width (truncate (floatWidth * columnWidth)) x)
         in maybe_map f frame.column1
       column2Element frame context =
-        let rightMargin = maybe 0.0 id frame.rightMargin
-            topMargin = maybe 0.0 id frame.topMargin
+        let rightMargin = maybe 0 id frame.rightMargin
+            topMargin = maybe 0 id frame.topMargin
             floatWidth = toFloat context.windowWidth
-            columnWidth = maybe 0.5 id frame.columnWidth
+            columnWidth = maybe 0 id frame.columnWidth
             f x = container context.windowWidth context.windowHeight
                                              (topRightAt (relative rightMargin) (relative topMargin))
                                              (width (truncate (floatWidth * columnWidth)) x)
         in maybe_map f frame.column2
   in  [ column1Element, column2Element ]
 
-selectionBoxBuilder : [MaybeFrameBuilder]
+--selectionBoxBuilder : [MaybeFrameBuilder]
 selectionBoxBuilder =
   let selectionBoxElement frame context =
-    if Maybe.isJust frame.selectionBoxColor
+    if isJust frame.selectionBoxColor
     then
       if context.mouseIsDown
       then let (x0,y0) = context.mousePosition
@@ -176,20 +176,20 @@ selectionBoxBuilder =
     else Nothing
   in [ selectionBoxElement ]
 
-coreFrameBuilders : [MaybeFrameBuilder]
+--coreFrameBuilders : [MaybeFrameBuilder]
 coreFrameBuilders = concat [ backgroundBuilders, headerBuilders, contentBuilders, middleBuilders, twoColumnsBuilders, selectionBoxBuilder]
 
-frameBuilders : [MaybeFrameBuilder]
+--frameBuilders : [MaybeFrameBuilder]
 frameBuilders = coreFrameBuilders -- ++ [contextDebugBuilder]
 
-buildFrame : FrameBuilder
+--buildFrame : FrameBuilder
 buildFrame frame context = layers (justs <| map (\f -> f frame context) frameBuilders)
 
 ----------------------------- HANDLERS
 
 type HandlerSelector = Context -> Maybe FrameBuilder
 
-slidingTransitionSelectors : [HandlerSelector]
+--slidingTransitionSelectors : [HandlerSelector]
 slidingTransitionSelectors = 
   let twoFramesElement leftFrame rightFrame context = (buildFrame leftFrame context) `beside` (buildFrame rightFrame context)
       getDelta windowWidth tsic = (toFloat windowWidth) * (1 - 0.9^(tsic / 10)) 
@@ -198,14 +198,14 @@ slidingTransitionSelectors =
             rightFrame = ithmod context.currentFrameIndex frames
             deltaX = getDelta context.windowWidth context.timeSinceIndexChange
             twoFrames = twoFramesElement leftFrame rightFrame context
-            position = topLeftAt (absolute (0-deltaX)) (absolute 0)
+            position = topLeftAt (absolute (round -deltaX)) (absolute 0)
         in container context.windowWidth context.windowHeight position twoFrames 
       moveFramesRightToLeft frames context =
         let leftFrame = ithmod context.currentFrameIndex frames
             rightFrame = ithmod context.previousFrameIndex frames
             deltaX = getDelta context.windowWidth context.timeSinceIndexChange
             twoFrames = twoFramesElement leftFrame rightFrame context
-            position = topLeftAt (absolute (deltaX-context.windowWidth)) (absolute 0)
+            position = topLeftAt (absolute (round <| deltaX - (toFloat context.windowWidth))) (absolute 0)
         in container context.windowWidth context.windowHeight position twoFrames 
       selectLTR context =
         if context.transition == ForwardTransition && context.timeSinceIndexChange < 1000
@@ -217,39 +217,34 @@ slidingTransitionSelectors =
         else Nothing
   in  [ selectLTR, selectRTL ]
 
-defaultHandlerSelector : [HandlerSelector]
+--defaultHandlerSelector : [HandlerSelector]
 defaultHandlerSelector =
   let showCurrentFrame frames context = buildFrame (ithmod context.currentFrameIndex frames) context
       selectShowFrame context = Just showCurrentFrame
   in [ selectShowFrame ] 
 
-handlerSelectors : [HandlerSelector]
+--handlerSelectors : [HandlerSelector]
 handlerSelectors = concat [slidingTransitionSelectors, defaultHandlerSelector]
       
 -- presentation
 
--- NOTE: Because of Elm issue #192, the following type is bugged. When issue #192 is fixed, the following should be uncommented
---       and the type 'Frame' should be used in the type signatures of 'emptyFrame' and 'presentation'
---       For reference: https://github.com/evancz/Elm/issues/192
---type Frame = { backgroundColor : Maybe Color
---             , column1 : Maybe String
---             , column2 : Maybe String
---             , columnWidth : Maybe Float
---             , content : Maybe Element
---             , contentWidth : Maybe Float
---             , headerBackgroundColor : Maybe Color
---             , headerHeight : Maybe Float
---             , leftMargin : Maybe Float
---             , middle : Maybe Element
---             , rightMargin : Maybe Float
---             , selectionBoxColor : Maybe Color
---             , title : Maybe String
---             , topMargin : Maybe Float
---             }
+type Frame = { backgroundColor : Maybe Color
+             , column1 : Maybe String
+             , column2 : Maybe String
+             , columnWidth : Maybe Float
+             , content : Maybe Element
+             , contentWidth : Maybe Float
+             , headerBackgroundColor : Maybe Color
+             , headerHeight : Maybe Float
+             , leftMargin : Maybe Float
+             , middle : Maybe Element
+             , rightMargin : Maybe Float
+             , selectionBoxColor : Maybe Color
+             , title : Maybe String
+             , topMargin : Maybe Float
+             }
 
-
-
-emptyFrame : {backgroundColor : Maybe Color, column1 : Maybe String, column2 : Maybe String, columnWidth : Maybe Float, content : Maybe Element, contentWidth : Maybe Float, headerBackgroundColor : Maybe Color, headerHeight : Maybe Float, leftMargin : Maybe Float, middle : Maybe Element, rightMargin : Maybe Float, selectionBoxColor : Maybe Color, title : Maybe String, topMargin : Maybe Float}
+--emptyFrame : Frame
 emptyFrame = { backgroundColor = Nothing
              , column1 = Nothing
              , column2 = Nothing
@@ -266,7 +261,7 @@ emptyFrame = { backgroundColor = Nothing
              , topMargin = Just 0.15
              }
 
-presentation : [{backgroundColor : Maybe Color, column1 : Maybe String, column2 : Maybe String, columnWidth : Maybe Float, content : Maybe Element, contentWidth : Maybe Float, headerBackgroundColor : Maybe Color, headerHeight : Maybe Float, leftMargin : Maybe Float, middle : Maybe Element, rightMargin : Maybe Float, selectionBoxColor : Maybe Color, title : Maybe String, topMargin : Maybe Float}] -> Signal Element
+--presentation : [Frame] -> Signal Element
 presentation frames =
   let showPresentation frames context = 
         let handlers = justs <| map (\f -> f context) handlerSelectors
