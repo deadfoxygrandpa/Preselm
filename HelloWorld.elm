@@ -1,4 +1,4 @@
-import open Preselm
+import Preselm (..)
 
 frame1 = { emptyFrame | middle <- Just [markdown|# Hello World!|] }
 

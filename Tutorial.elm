@@ -2,7 +2,7 @@
 
 module Tutorial where
 
-import open Preselm
+import Preselm (..)
 
 --------------------------
 
@@ -39,9 +39,9 @@ frame2 = { emptyFrame | title <- Just \"Goodbye\", middle <- Just [markdown|#Wor
 
 main = presentation [frame1, frame2]"
 
-frame3 = { emptyFrame | title <- Just "Hello World", column1 <- Just $ [markdown|Let’s create a simple presentation. You can follow the steps described here.
+frame3 = { emptyFrame | title <- Just "Hello World", column1 <- Just <| [markdown|Let’s create a simple presentation. You can follow the steps described here.
 
-Create a text file called *HelloWorld.elm* with the content shown on the right hand side.
+Create a centered file called *HelloWorld.elm* with the content shown on the right hand side.
 
 Then you need to compile it together with Preselm. Here is how you can do it:
 
@@ -54,7 +54,7 @@ When you open it in a browser, you should get a Preselm presentation with two fr
 After those two frames the tutorial will continue.
 
 Press *Enter* to continue. |],
- column2 <- Just (text $ monospace $ toText hwProgram) }
+ column2 <- Just (centered <| monospace <| toText hwProgram) }
 
 --------------------------
 
@@ -66,7 +66,7 @@ hwframe2 = { emptyFrame | title <- Just "Goodbye", middle <- Just [markdown|#Wor
 
 --------------------------
 
-frame4 = { emptyFrame | column1 <- Just $ [markdown|
+frame4 = { emptyFrame | column1 <- Just <| [markdown|
 
 We are back to the tutorial.
 
