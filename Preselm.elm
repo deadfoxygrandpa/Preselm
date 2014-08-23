@@ -6,6 +6,7 @@ import Maybe (..)
 import Keyboard
 import Window
 import Mouse
+import Text
 
 -- util
 
@@ -113,7 +114,7 @@ headerBuilders =
     let titleElement frame context =
             case frame.title of
                 Just s  -> let headerHeight = (toFloat context.windowHeight) * (maybe 0 id frame.headerHeight)
-                           in  Just <| container context.windowWidth (round headerHeight) middle (centered . bold . toText <| s)
+                           in  Just <| container context.windowWidth (round headerHeight) middle (centered . Text.height 40 . bold . toText <| s)
                 Nothing -> Nothing
         headerBackgroundElement frame context =
             case frame.headerBackgroundColor of
