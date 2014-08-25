@@ -3,8 +3,6 @@
 module Preselm (presentation, emptyFrame, Forward, Backward, Home, End) where
 
 import Maybe (..)
-import Keyboard
-import Window
 import Mouse
 import Text
 
