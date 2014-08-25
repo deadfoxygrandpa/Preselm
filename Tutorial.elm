@@ -2,7 +2,11 @@
 
 module Tutorial where
 
+import Window
+import Keyboard
+
 import Preselm (..)
+import Preselm
 
 --------------------------
 
@@ -149,4 +153,13 @@ frame9 = { emptyFrame | middle <- Just [markdown|## This the end of the tutorial
 
 --------------------------
 
-main = presentation [frame1, frame2, frame3, hwframe1, hwframe2, frame4, frame5, frame6, frame7, frame8, frame9 ]
+keys = (\x -> [x]) <~  Keyboard.lastPressed
+
+handle : [Keyboard.KeyCode] -> Maybe Preselm.Action
+handle keys = if | keys == [39] || keys == [78] || keys == [13] -> Just Preselm.Forward
+                 | keys == [37] || keys == [80]                 -> Just Preselm.Backward
+                 | keys == [35] || keys == [69]                 -> Just Preselm.End
+                 | keys == [36] || keys == [72]                 -> Just Preselm.Home
+                 | otherwise                                    -> Nothing
+
+main = presentation [frame1, frame2, frame3, hwframe1, hwframe2, frame4, frame5, frame6, frame7, frame8, frame9] (constant (500, 700)) keys handle

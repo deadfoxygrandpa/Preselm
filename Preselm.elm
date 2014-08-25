@@ -1,6 +1,6 @@
 -- Copyright (c) 2013 Grzegorz Balcerek; see the LICENSE.txt file
 
-module Preselm (presentation, emptyFrame) where
+module Preselm (presentation, emptyFrame, Forward, Backward, Home, End) where
 
 import Maybe (..)
 import Keyboard
@@ -35,24 +35,24 @@ type FrameIndex =
     , transition : Transition
     }
 
-lastKeysDownSignal : Signal [Keyboard.KeyCode]
-lastKeysDownSignal = sampleOn (dropIf isEmpty [] Keyboard.keysDown) Keyboard.keysDown
+data Action = Forward | Backward | Home | End
 
-currentFrameIndexSignal : Signal FrameIndex
-currentFrameIndexSignal =
+currentFrameIndexSignal : Signal a -> (a -> Maybe Action) -> Signal FrameIndex
+currentFrameIndexSignal keysDown handle =
     let step (t, keys) indexes =
         let (nextIndex, trans) =
-            if | keys == [39] || keys == [78] || keys == [13] -> (indexes.current + 1, ForwardTransition)
-               | keys == [37] || keys == [80]                 -> (indexes.current - 1, BackwardTransition)
-               | keys == [35] || keys == [69]                 -> (0 - 1, NoTransition)
-               | keys == [36] || keys == [72]                 -> (0, NoTransition)
-               | otherwise                                    -> (indexes.current, NoTransition)
+            case handle keys of
+                Just Forward  -> (indexes.current + 1, ForwardTransition)
+                Just Backward -> (indexes.current - 1, BackwardTransition)
+                Just Home     -> (0, NoTransition)
+                Just End      -> (0 - 1, NoTransition)
+                Nothing       -> (indexes.current, NoTransition)
         in { current = nextIndex, previous = indexes.current, indexChangeTime = t, transition = trans }
-    in foldp step { current = 0, previous = 0, indexChangeTime = 0, transition = NoTransition } (timestamp lastKeysDownSignal)
+    in foldp step { current = 0, previous = 0, indexChangeTime = 0, transition = NoTransition } (timestamp keysDown)
 
 -- this signal has the elapsed time since the last frame index change, updated with the frequency of fps 60
-timeSinceIndexChangeSignal : Signal Time
-timeSinceIndexChangeSignal = fst <~ (timestamp <| fpsWhen 60 (since second currentFrameIndexSignal))
+timeSinceIndexChangeSignal : Signal FrameIndex -> Signal Time
+timeSinceIndexChangeSignal frames = fst <~ (timestamp <| fpsWhen 60 (since second frames))
 
 -- context
 
@@ -81,13 +81,14 @@ makeContextRecord (w, h) i tsic md mpd mp =
     , mousePosition = mp
     }
 
-contextSignal : Signal Context
-contextSignal = makeContextRecord <~ Window.dimensions
-                                   ~ currentFrameIndexSignal
-                                   ~ timeSinceIndexChangeSignal
-                                   ~ Mouse.isDown
-                                   ~ sampleOn Mouse.isDown Mouse.position
-                                   ~ Mouse.position
+makeContextSignal : Signal (Int, Int) -> Signal FrameIndex -> Signal Context
+makeContextSignal dimensions frames =
+    makeContextRecord <~ dimensions
+                       ~ frames
+                       ~ (timeSinceIndexChangeSignal frames)
+                       ~ Mouse.isDown
+                       ~ (sampleOn Mouse.isDown Mouse.position)
+                       ~ Mouse.position
 
 ------------------------------------ FRAME BUILDERS --------------------
 
@@ -278,10 +279,12 @@ emptyFrame = { backgroundColor = Nothing
              , topMargin = Just 0.15
              }
 
-presentation : [Frame] -> Signal Element
-presentation frames =
-  let showPresentation frames context =
+presentation : [Frame] -> Signal (Int, Int) -> Signal a -> (a -> Maybe Action) -> Signal Element
+presentation frames dimensions keys handle =
+  let currentFrames = currentFrameIndexSignal keys handle
+      context = makeContextSignal dimensions currentFrames
+      showPresentation frames context =
         let handlers = justs <| map (\f -> f context) handlerSelectors
             theHandler = head handlers
         in  theHandler frames context
-  in lift (showPresentation frames) contextSignal
+  in lift (showPresentation frames) context
